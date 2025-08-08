@@ -153,27 +153,13 @@ SCIPAC returns a pandas DataFrame with the following columns:
 - **Data Structures**: Uses pandas/numpy instead of R matrices
 - **Parallel Backend**: joblib instead of R's parallel package
 
-## Citation
-
-If you use pySCIPAC, please cite:
-
-```bibtex
-@article{scipac2024,
-  title={SCIPAC: Single Cell Identifier of Phenotype-Associated Cells},
-  author={...},
-  journal={...},
-  year={2024}
-}
-```
 
 ## License
 
 MIT License - see LICENSE file for details
 
-## Contributing
+## Citation
 
-Contributions are welcome! Please submit issues and pull requests on GitHub.
+This is a Python implementation of the original SCIPAC R package developed by @RavenGan. If you use pySCIPAC, please cite the original author:
 
-## Acknowledgments
-
-This is a Python implementation of the original SCIPAC R package developed by [original authors].
+Gan, D., Zhu, Y., Lu, X., & Li, J. (2024). SCIPAC: quantitative estimation of cell-phenotype associations. Genome Biology, 25(1), 119.
