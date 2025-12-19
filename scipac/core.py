@@ -449,13 +449,61 @@ def SCIPAC(
     
     if verbose:
         print(f"Running SCIPAC with family='{family}', {bt_size} bootstrap samples")
-    
+
     # Convert to numpy if needed
     if isinstance(bulk_dat, pd.DataFrame):
         bulk_arr = bulk_dat.values
     else:
-        bulk_arr = bulk_dat
-    
+        bulk_arr = np.asarray(bulk_dat)
+
+    # === INPUT VALIDATION ===
+    # Validate dimensions: len(y) must equal bulk_dat.shape[0]
+    if isinstance(y, (pd.DataFrame, pd.Series)):
+        n_samples_y = len(y)
+    else:
+        y_arr = np.asarray(y)
+        n_samples_y = y_arr.shape[0] if y_arr.ndim > 0 else 1
+
+    if n_samples_y != bulk_arr.shape[0]:
+        raise ValueError(
+            f"Dimension mismatch: bulk_dat has {bulk_arr.shape[0]} samples, "
+            f"but y has {n_samples_y} samples. These must match."
+        )
+
+    # Validate Cox survival data structure
+    if family == 'cox':
+        if isinstance(y, pd.DataFrame):
+            required_cols = {'time', 'status'}
+            if not required_cols.issubset(set(y.columns)):
+                raise ValueError(
+                    f"Cox regression requires a DataFrame with 'time' and 'status' columns. "
+                    f"Found columns: {list(y.columns)}"
+                )
+            if (y['time'] <= 0).any():
+                raise ValueError("Cox regression requires positive survival times.")
+            if not set(y['status'].unique()).issubset({0, 1}):
+                raise ValueError("Cox regression 'status' column must contain only 0 (censored) or 1 (event).")
+        elif isinstance(y, np.ndarray) and y.ndim == 2:
+            if y.shape[1] != 2:
+                raise ValueError(
+                    f"Cox regression with numpy array requires shape (n_samples, 2) for [time, status]. "
+                    f"Got shape {y.shape}"
+                )
+        else:
+            raise ValueError(
+                "Cox regression requires either a DataFrame with 'time' and 'status' columns, "
+                "or a 2D numpy array with shape (n_samples, 2)."
+            )
+
+    # Validate cluster results structure
+    required_keys = {'k', 'ct_assignment', 'centers'}
+    if not required_keys.issubset(set(ct_res.keys())):
+        raise ValueError(
+            f"ct_res must contain keys: {required_keys}. "
+            f"Found: {set(ct_res.keys())}"
+        )
+    # === END VALIDATION ===
+
     # Calculate Lambda values with bootstrap
     lambda_res = classifier_lambda(
         bulk_arr, y, family, ct_res,
