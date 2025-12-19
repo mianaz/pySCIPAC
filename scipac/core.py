@@ -220,23 +220,34 @@ def classifier_lambda_core(
         
     else:
         raise ValueError(f"Invalid family: {family}. Choose from 'binomial', 'gaussian', 'cox', 'cumulative'")
-    
+
+    # Numerical stability: clip extreme coefficient values to prevent overflow
+    beta = np.clip(beta, -1e10, 1e10)
+    # Replace any NaN or Inf values with 0
+    beta = np.nan_to_num(beta, nan=0.0, posinf=1e10, neginf=-1e10)
+
     # Calculate Lambda values
     lambda_values = np.zeros(k)
     for cluster_idx in range(k):
         chosen_cen = k_means_cent[:, cluster_idx]
         x = chosen_cen - new_sample_ave
+        # Clip x values to prevent overflow in dot product
+        x = np.clip(x, -1e10, 1e10)
         lambda_values[cluster_idx] = np.dot(beta, x)
     
     # Assign Lambda to cells based on cluster
     ct_idx = ct_assign['cluster_assignment'].values
     ct_assign['Lambda'] = lambda_values[ct_idx]
-    
+
+    # Clip Lambda values before standardization to prevent extreme outliers
+    ct_assign['Lambda'] = np.clip(ct_assign['Lambda'], -1e10, 1e10)
+
     # Standardize Lambda values
-    if np.std(ct_assign['Lambda']) > 0:
-        ct_assign['Lambda'] = (ct_assign['Lambda'] - np.mean(ct_assign['Lambda'])) / np.std(ct_assign['Lambda'])
+    lambda_std = np.std(ct_assign['Lambda'])
+    if lambda_std > 1e-10:
+        ct_assign['Lambda'] = (ct_assign['Lambda'] - np.mean(ct_assign['Lambda'])) / lambda_std
     else:
-        warnings.warn("Lambda values have zero variance")
+        warnings.warn("Lambda values have near-zero variance")
         ct_assign['Lambda'] = np.zeros(len(ct_assign))
     
     return ct_assign
@@ -333,20 +344,30 @@ def obtain_ct_lambda(
     """
     
     ct_assign = k_means_res['ct_assignment'].copy()
-    
-    # Calculate statistics
+
+    # Calculate statistics with numerical stability
     lambda_est = np.mean(lambda_res, axis=1)
     lambda_std = np.std(lambda_res, axis=1)
-    
+
+    # Handle NaN/Inf values that may arise from failed bootstrap samples
+    lambda_est = np.nan_to_num(lambda_est, nan=0.0, posinf=1e10, neginf=-1e10)
+    lambda_std = np.nan_to_num(lambda_std, nan=1e-10, posinf=1e10, neginf=0.0)
+    # Ensure std is never zero to avoid division issues
+    lambda_std = np.maximum(lambda_std, 1e-10)
+
     # Calculate confidence intervals
     z_score = stats.norm.ppf(1 - ci_alpha/2)
     lambda_upper = lambda_est + z_score * lambda_std
     lambda_lower = lambda_est - z_score * lambda_std
-    
-    # Calculate p-values
-    lambda_z = lambda_est / (lambda_std + 1e-10)
+
+    # Calculate p-values with numerical stability
+    lambda_z = lambda_est / lambda_std
+    # Clip z-scores to prevent extreme p-values
+    lambda_z = np.clip(lambda_z, -37, 37)  # norm.sf(-37) ~ 1, norm.sf(37) ~ 0
     lambda_pval = 2 * stats.norm.sf(np.abs(lambda_z))
-    lambda_log_pval = -np.log10(lambda_pval + 1e-300) * np.sign(lambda_z)
+    # Avoid log10(0) by ensuring minimum p-value
+    lambda_pval = np.maximum(lambda_pval, 1e-300)
+    lambda_log_pval = -np.log10(lambda_pval) * np.sign(lambda_z)
     
     # Determine significance
     sig = np.full(len(lambda_res), 'Not.sig', dtype=object)

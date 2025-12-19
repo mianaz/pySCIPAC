@@ -67,13 +67,17 @@ def preprocess_sc_bulk_dat(
     
     # Normalize single-cell data (library size normalization + log1p)
     sc_normalized = sc_common.copy()
-    
+
     # Library size normalization for single cells
     total_counts = sc_normalized.sum(axis=0)
+    # Handle cells with zero total counts to avoid divide-by-zero
+    total_counts = total_counts.replace(0, 1)
     sc_normalized = sc_normalized.divide(total_counts, axis=1) * 10000
     sc_normalized = np.log1p(sc_normalized)
-    
+
     # Log-transform bulk data (assuming it's already normalized, e.g., TPM or FPKM)
+    # Clip negative values (shouldn't exist but handle edge cases)
+    bulk_common = bulk_common.clip(lower=0)
     bulk_normalized = np.log1p(bulk_common)
     
     # Select highly variable genes from single-cell data
