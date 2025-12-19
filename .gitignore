@@ -23,8 +23,10 @@ wheels/
 pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
+scipac.egg-info/
 .installed.cfg
 *.egg
+*.whl
 MANIFEST
 
 # PyInstaller
@@ -68,13 +70,16 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDEs
+# IDEs and editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+
+# Claude Code
+.claude/
 
 # Test data and results
 tests/
@@ -85,3 +90,30 @@ test_data/
 docs/_build/
 docs/_static/
 docs/_templates/
+
+# Tutorial and vignette outputs
+vignette_results.png
+*.png
+!docs/*.png
+
+# Large data files
+*.h5ad
+*.rds
+*.mtx
+*.h5
+*.hdf5
+
+# Temporary analysis files
+*.tmp
+*.bak
+.joblib/
+
+# Real-world data (too large for git)
+data/
+raw_data/
+GSE*/
+TCGA*/
+
+# Local analysis and tutorial files (contain hardcoded paths)
+ANALYSIS_REPORT.md
+tutorial_brca.py

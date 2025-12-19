@@ -1,13 +1,34 @@
+# Core dependencies
 numpy>=1.20.0
 pandas>=1.3.0
 scikit-learn>=1.0.0
 scipy>=1.7.0
-scanpy>=1.8.0
-anndata>=0.8.0
-harmonypy>=0.0.9
-python-glmnet>=1.0.2
-lifelines>=0.27.0
 joblib>=1.0.0
 tqdm>=4.60.0
+
+# Optional: Leiden clustering (recommended)
+python-igraph>=0.10.0
+leidenalg>=0.9.0
+
+# Optional: Ordinal regression
+mord>=0.6
+
+# Optional: Survival analysis
+lifelines>=0.27.0
+
+# Optional: Batch correction
+harmonypy>=0.0.9
+
+# Optional: Scanpy integration
+scanpy>=1.8.0
+anndata>=0.8.0
+
+# Optional: Visualization
 matplotlib>=3.3.0
 seaborn>=0.11.0
+
+# Development
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+ruff>=0.1.0

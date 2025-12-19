@@ -4,7 +4,6 @@ Preprocessing functions for SCIPAC
 
 import numpy as np
 import pandas as pd
-import scanpy as sc
 from typing import Tuple, Optional, Union
 import warnings
 

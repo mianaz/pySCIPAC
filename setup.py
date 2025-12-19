@@ -11,13 +11,36 @@ setup(
         "pandas>=1.3.0",
         "scikit-learn>=1.0.0",
         "scipy>=1.7.0",
-        "scanpy>=1.8.0",
-        "anndata>=0.8.0",
-        "harmonypy>=0.0.9",
-        "glmnet>=2.0.0",
-        "lifelines>=0.27.0",  # for cox regression
-        "joblib>=1.0.0",  # for parallel processing
-        "tqdm>=4.60.0",  # for progress bars
+        "joblib>=1.0.0",
+        "tqdm>=4.60.0",
     ],
-    python_requires=">=3.7",
+    extras_require={
+        "leiden": [
+            "python-igraph>=0.10.0",
+            "leidenalg>=0.9.0",
+        ],
+        "ordinal": [
+            "mord>=0.6",
+        ],
+        "survival": [
+            "lifelines>=0.27.0",
+        ],
+        "batch": [
+            "harmonypy>=0.0.9",
+        ],
+        "scanpy": [
+            "scanpy>=1.8.0",
+            "anndata>=0.8.0",
+        ],
+        "all": [
+            "python-igraph>=0.10.0",
+            "leidenalg>=0.9.0",
+            "mord>=0.6",
+            "lifelines>=0.27.0",
+            "harmonypy>=0.0.9",
+            "scanpy>=1.8.0",
+            "anndata>=0.8.0",
+        ],
+    },
+    python_requires=">=3.8",
 )

@@ -10,36 +10,84 @@ pySCIPAC identifies single cells associated with clinical phenotypes by integrat
 
 - **Multi-phenotype support**: Binary, continuous, ordinal, and survival outcomes
 - **Batch correction**: Integrated Harmony support for removing batch effects
-- **Parallel processing**: Bootstrap parallelization for faster computation
-- **Flexible clustering**: KMeans and optional Leiden clustering
+- **Parallel processing**: Bootstrap parallelization with stratified sampling
+- **Graph-based clustering**: Leiden algorithm (Seurat-like) with KMeans fallback
+- **Proper ordinal regression**: Uses `mord` package for proportional odds model
 - **Memory efficient**: Handles large-scale single-cell datasets
 
 ## Installation
 
 ### Requirements
-- Python 3.7+
+- Python 3.8+
 - NumPy, Pandas, Scikit-learn, SciPy
 
-### Install from source
+### Method 1: Install from PyPI (when available)
+```bash
+pip install pyscipac
+
+# With all optional dependencies
+pip install pyscipac[all]
+```
+
+### Method 2: Install from GitHub
+```bash
+pip install git+https://github.com/yourusername/pySCIPAC.git
+
+# With optional dependencies
+pip install "pyscipac[all] @ git+https://github.com/yourusername/pySCIPAC.git"
+```
+
+### Method 3: Clone and install locally
 ```bash
 git clone https://github.com/yourusername/pySCIPAC.git
 cd pySCIPAC
+
+# Standard installation
+pip install .
+
+# Editable installation (for development)
 pip install -e .
+
+# With all optional dependencies
+pip install -e ".[all]"
 ```
 
-### Install dependencies
+### Method 4: Install with all dependencies for development
 ```bash
+git clone https://github.com/yourusername/pySCIPAC.git
+cd pySCIPAC
 pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
-For batch correction support:
-```bash
-pip install harmonypy
-```
+### Optional dependency groups
 
-For survival analysis:
+Install specific features as needed:
+
 ```bash
-pip install lifelines
+# Leiden clustering (recommended, matches Seurat)
+pip install pyscipac[leiden]
+
+# Ordinal regression
+pip install pyscipac[ordinal]
+
+# Survival analysis (Cox regression)
+pip install pyscipac[survival]
+
+# Batch correction (Harmony)
+pip install pyscipac[batch]
+
+# Scanpy integration
+pip install pyscipac[scanpy]
+
+# Visualization
+pip install pyscipac[viz]
+
+# Everything
+pip install pyscipac[all]
+
+# Multiple groups
+pip install pyscipac[leiden,survival,viz]
 ```
 
 ## Quick Start
@@ -148,8 +196,9 @@ SCIPAC returns a pandas DataFrame with the following columns:
 
 ## Differences from R Implementation
 
-- **Clustering**: Simplified KMeans by default (Leiden optional)
-- **Ordinal Regression**: Simplified implementation
+- **Clustering**: Leiden by default (matches Seurat), KMeans as fallback
+- **Ordinal Regression**: Uses `mord` package (proportional odds model)
+- **Bootstrap Sampling**: Stratified for binomial/ordinal (matches R)
 - **Data Structures**: Uses pandas/numpy instead of R matrices
 - **Parallel Backend**: joblib instead of R's parallel package
 
