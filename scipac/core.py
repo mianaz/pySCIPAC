@@ -48,15 +48,41 @@ def classifier_lambda_core(
     ct_assign = k_means_res['ct_assignment'].copy()
     
     n_samples = bulk_dat.shape[0]
-    
+
     # Bootstrap sampling
     if random_state is not None:
         np.random.seed(random_state)
-    
-    resample_idx = np.random.choice(n_samples, n_samples, replace=True)
+
+    # Determine if stratified sampling is needed (for binomial and cumulative families)
+    use_stratified = family in ['binomial', 'cumulative']
+
+    if use_stratified:
+        # Stratified bootstrap: sample within each class to maintain class proportions
+        # This matches R's implementation which samples separately per class
+        if isinstance(y, pd.DataFrame):
+            y_values = y.values.flatten()
+        else:
+            y_values = np.asarray(y).flatten()
+
+        unique_classes = np.unique(y_values)
+        resample_idx = []
+
+        for class_label in unique_classes:
+            class_idx = np.where(y_values == class_label)[0]
+            # Sample with replacement within this class
+            resampled_class_idx = np.random.choice(class_idx, len(class_idx), replace=True)
+            resample_idx.extend(resampled_class_idx)
+
+        resample_idx = np.array(resample_idx)
+        # Shuffle to mix classes (order shouldn't matter but matches R behavior)
+        np.random.shuffle(resample_idx)
+    else:
+        # Simple random sampling for gaussian and cox families
+        resample_idx = np.random.choice(n_samples, n_samples, replace=True)
+
     new_sample = bulk_dat[resample_idx]
     new_sample_ave = np.mean(new_sample, axis=0)
-    
+
     if family == 'binomial':
         # Prepare labels
         if isinstance(y, pd.DataFrame):
