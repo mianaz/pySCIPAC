@@ -139,24 +139,58 @@ def classifier_lambda_core(
         beta = cph.params_.values
         
     elif family == 'cumulative':
-        # Ordinal regression - simplified implementation using logistic regression
-        # For a full implementation, you would use specialized ordinal regression packages
-        warnings.warn("Cumulative family uses simplified logistic regression. Consider using specialized packages for ordinal regression.")
-        
+        # Ordinal regression using mord package (proportional odds model)
+        # This is equivalent to R's ordinalNet with family="cumulative"
         new_y = y[resample_idx]
-        
-        model = LogisticRegressionCV(
-            penalty='elasticnet' if ela_net_alpha not in [0, 1] else ('l2' if ela_net_alpha == 0 else 'l1'),
-            l1_ratios=[ela_net_alpha] if ela_net_alpha not in [0, 1] else None,
-            cv=nfold,
-            solver='saga' if ela_net_alpha not in [0, 1] else 'liblinear',
-            random_state=random_state,
-            multi_class='ordinal',
-            max_iter=1000
-        )
-        
-        model.fit(new_sample, new_y)
-        beta = model.coef_.mean(axis=0)  # Average across ordinal boundaries
+
+        try:
+            import mord
+
+            # Use LogisticAT (All-Threshold) for ordinal regression with regularization
+            # alpha parameter in mord controls regularization strength (higher = more regularization)
+            # We use a moderate regularization similar to glmnet defaults
+            model = mord.LogisticAT(alpha=1.0, max_iter=1000)
+            model.fit(new_sample, new_y)
+            beta = model.coef_.flatten()
+
+        except ImportError:
+            # Fallback: use multinomial logistic regression (less accurate for ordinal data)
+            warnings.warn(
+                "mord package not installed. Using multinomial logistic regression as fallback. "
+                "For proper ordinal regression, install mord: pip install mord"
+            )
+
+            if ela_net_alpha == 0:
+                model = LogisticRegressionCV(
+                    penalty='l2',
+                    cv=nfold,
+                    multi_class='multinomial',
+                    solver='lbfgs',
+                    random_state=random_state,
+                    max_iter=1000
+                )
+            elif ela_net_alpha == 1:
+                model = LogisticRegressionCV(
+                    penalty='l1',
+                    cv=nfold,
+                    multi_class='ovr',
+                    solver='liblinear',
+                    random_state=random_state,
+                    max_iter=1000
+                )
+            else:
+                model = LogisticRegressionCV(
+                    penalty='elasticnet',
+                    l1_ratios=[ela_net_alpha],
+                    cv=nfold,
+                    multi_class='multinomial',
+                    solver='saga',
+                    random_state=random_state,
+                    max_iter=1000
+                )
+
+            model.fit(new_sample, new_y)
+            beta = model.coef_.mean(axis=0)  # Average across classes
         
     else:
         raise ValueError(f"Invalid family: {family}. Choose from 'binomial', 'gaussian', 'cox', 'cumulative'")
