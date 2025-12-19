@@ -305,8 +305,11 @@ def classifier_lambda(
                 bulk_dat, y, family, k_means_res,
                 ela_net_alpha, nfold, random_state=seed
             )['Lambda'].values
-        except Exception as e:
-            warnings.warn(f"Bootstrap sample {seed} failed: {str(e)}")
+        except (ValueError, np.linalg.LinAlgError, RuntimeError) as e:
+            # ValueError: convergence issues, invalid input
+            # LinAlgError: singular matrix in regression
+            # RuntimeError: solver failures
+            warnings.warn(f"Bootstrap sample {seed} failed: {type(e).__name__}: {str(e)}")
             return None
     
     # Run bootstrap samples in parallel
