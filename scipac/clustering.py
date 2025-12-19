@@ -138,10 +138,21 @@ def seurat_ct(
 
     # Calculate cluster centroids
     centers = np.zeros((n_pcs, n_clusters))
+    empty_clusters = []
     for k in range(n_clusters):
         cluster_cells = data[cluster_labels == k]
         if len(cluster_cells) > 0:
             centers[:, k] = np.mean(cluster_cells, axis=0)
+        else:
+            empty_clusters.append(k)
+            # Use global mean as fallback for empty clusters
+            centers[:, k] = np.mean(data, axis=0)
+
+    if empty_clusters:
+        warnings.warn(
+            f"Found {len(empty_clusters)} empty cluster(s): {empty_clusters}. "
+            f"Consider using a lower resolution parameter or different random seed."
+        )
 
     # Create cluster assignment dataframe
     ct_assignment = pd.DataFrame({
@@ -224,19 +235,30 @@ def leiden_clustering(
     
     # Calculate cluster centroids
     centers = np.zeros((n_pcs, n_clusters))
+    empty_clusters = []
     for k in range(n_clusters):
         cluster_cells = data[cluster_labels == k]
         if len(cluster_cells) > 0:
             centers[:, k] = np.mean(cluster_cells, axis=0)
-    
+        else:
+            empty_clusters.append(k)
+            # Use global mean as fallback for empty clusters
+            centers[:, k] = np.mean(data, axis=0)
+
+    if empty_clusters:
+        warnings.warn(
+            f"Found {len(empty_clusters)} empty cluster(s): {empty_clusters}. "
+            f"Consider using a lower resolution parameter or different random seed."
+        )
+
     # Create cluster assignment dataframe
     ct_assignment = pd.DataFrame({
         'cluster_assignment': cluster_labels
     }, index=cell_names)
-    
+
     if verbose:
         print(f"Clustering complete. Found {n_clusters} clusters.")
-    
+
     return {
         'k': n_clusters,
         'ct_assignment': ct_assignment,
