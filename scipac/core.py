@@ -518,5 +518,175 @@ def SCIPAC(
         n_neg = (ct_assign['sig'] == 'Sig.neg').sum()
         n_ns = (ct_assign['sig'] == 'Not.sig').sum()
         print(f"Results: {n_pos} positive, {n_neg} negative, {n_ns} non-significant cells")
-    
+
     return ct_assign
+
+
+def run_scipac_anndata(
+    adata,
+    bulk_dat: Union[np.ndarray, pd.DataFrame],
+    y: Union[np.ndarray, pd.DataFrame],
+    family: Literal['binomial', 'gaussian', 'cox', 'cumulative'],
+    hvg: int = 2000,
+    hvg_method: str = 'cv2',
+    batch_key: Optional[str] = None,
+    n_pc: int = 60,
+    res: float = 0.8,
+    n_neighbors: int = 20,
+    ela_net_alpha: float = 0.4,
+    bt_size: int = 50,
+    n_jobs: int = -1,
+    ci_alpha: float = 0.05,
+    nfold: int = 10,
+    store_results: bool = True,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Complete SCIPAC workflow for AnnData objects.
+
+    This is a convenience function that runs the full SCIPAC pipeline:
+    preprocessing -> PCA -> clustering -> SCIPAC analysis
+
+    Parameters
+    ----------
+    adata : AnnData
+        Single-cell data in AnnData format (cells x genes).
+        Will be automatically transposed internally.
+    bulk_dat : array-like
+        Bulk RNA-seq data (genes x samples)
+    y : array-like
+        Phenotype labels or survival data
+    family : str
+        Regression family: 'binomial', 'gaussian', 'cox', 'cumulative'
+    hvg : int
+        Number of highly variable genes
+    hvg_method : str
+        HVG method: 'cv2' (default), 'seurat', 'cell_ranger', 'seurat_v3'
+    batch_key : str, optional
+        Column name in adata.obs for batch correction
+    n_pc : int
+        Number of principal components
+    res : float
+        Clustering resolution
+    n_neighbors : int
+        Number of neighbors for clustering
+    ela_net_alpha : float
+        ElasticNet mixing parameter (0=Ridge, 1=Lasso)
+    bt_size : int
+        Number of bootstrap samples
+    n_jobs : int
+        Number of parallel jobs (-1 for all cores)
+    ci_alpha : float
+        Confidence interval alpha
+    nfold : int
+        Number of cross-validation folds
+    store_results : bool
+        Whether to store results in adata.obs and adata.uns
+    verbose : bool
+        Print progress messages
+
+    Returns
+    -------
+    pd.DataFrame
+        SCIPAC results with Lambda values and significance
+    """
+    from .anndata_utils import is_anndata, store_scipac_results
+    from .preprocessing import preprocess_sc_bulk_dat
+    from .pca import sc_bulk_pca
+    from .clustering import seurat_ct
+
+    if not is_anndata(adata):
+        raise TypeError(
+            "adata must be an AnnData object. "
+            "For numpy/pandas input, use the individual functions directly."
+        )
+
+    if verbose:
+        print("=" * 60)
+        print("SCIPAC Analysis Pipeline for AnnData")
+        print("=" * 60)
+
+    # Step 1: Preprocessing
+    if verbose:
+        print("\n[Step 1/4] Preprocessing...")
+    prep_res = preprocess_sc_bulk_dat(
+        sc_dat=adata,
+        bulk_dat=bulk_dat,
+        hvg=hvg,
+        hvg_method=hvg_method,
+        batch_key=batch_key,
+        verbose=verbose
+    )
+
+    # Step 2: PCA
+    if verbose:
+        print("\n[Step 2/4] Dimensionality reduction (PCA)...")
+
+    # Get batch variable for Harmony if specified
+    batch_var = None
+    if batch_key is not None and batch_key in adata.obs.columns:
+        batch_var = adata.obs[batch_key].values
+
+    pca_res = sc_bulk_pca(
+        sc_dat=prep_res['sc_dat_preprocessed'],
+        bulk_dat=prep_res['bulk_dat_preprocessed'],
+        do_pca_sc=False,
+        n_pc=n_pc,
+        batch_var=batch_var,
+        verbose=verbose
+    )
+
+    # Step 3: Clustering
+    if verbose:
+        print("\n[Step 3/4] Cell clustering...")
+    ct_res = seurat_ct(
+        sc_dat_rot=pca_res['sc_dat_rot'],
+        res=res,
+        n_neighbors=n_neighbors,
+        verbose=verbose
+    )
+
+    # Step 4: SCIPAC
+    if verbose:
+        print("\n[Step 4/4] SCIPAC analysis...")
+    results = SCIPAC(
+        bulk_dat=pca_res['bulk_dat_rot'],
+        y=y,
+        family=family,
+        ct_res=ct_res,
+        ela_net_alpha=ela_net_alpha,
+        bt_size=bt_size,
+        n_jobs=n_jobs,
+        ci_alpha=ci_alpha,
+        nfold=nfold,
+        verbose=verbose
+    )
+
+    # Store results in AnnData
+    if store_results:
+        if verbose:
+            print("\nStoring results in AnnData...")
+        params = {
+            'family': family,
+            'bt_size': bt_size,
+            'ela_net_alpha': ela_net_alpha,
+            'ci_alpha': ci_alpha,
+            'hvg_method': hvg_method,
+            'n_hvg': hvg,
+            'n_pc': n_pc,
+            'res': res
+        }
+        store_scipac_results(adata, results, ct_res, params)
+
+    if verbose:
+        print("\n" + "=" * 60)
+        print("SCIPAC analysis complete!")
+        n_pos = (results['sig'] == 'Sig.pos').sum()
+        n_neg = (results['sig'] == 'Sig.neg').sum()
+        n_ns = (results['sig'] == 'Not.sig').sum()
+        print(f"Results: {n_pos} positive, {n_neg} negative, {n_ns} not significant")
+        if store_results:
+            print(f"Results stored in adata.obs (prefix: 'scipac_') and adata.uns['scipac']")
+        print("=" * 60)
+
+    return results
