@@ -126,7 +126,12 @@ def classifier_lambda_core(
         
     elif family == 'gaussian':
         # Linear regression
-        new_y = y[resample_idx]
+        if isinstance(y, pd.DataFrame):
+            new_y = y.iloc[resample_idx].values.flatten()
+        elif isinstance(y, pd.Series):
+            new_y = y.iloc[resample_idx].values
+        else:
+            new_y = np.asarray(y)[resample_idx]
         
         # Use ElasticNetCV for linear regression
         model = ElasticNetCV(
@@ -167,7 +172,12 @@ def classifier_lambda_core(
     elif family == 'cumulative':
         # Ordinal regression using mord package (proportional odds model)
         # This is equivalent to R's ordinalNet with family="cumulative"
-        new_y = y[resample_idx]
+        if isinstance(y, pd.DataFrame):
+            new_y = y.iloc[resample_idx].values.flatten()
+        elif isinstance(y, pd.Series):
+            new_y = y.iloc[resample_idx].values
+        else:
+            new_y = np.asarray(y)[resample_idx]
 
         try:
             import mord
