@@ -31,15 +31,15 @@ pip install pyscipac[all]
 
 ### Method 2: Install from GitHub
 ```bash
-pip install git+https://github.com/yourusername/pySCIPAC.git
+pip install git+https://github.com/mianaz/pySCIPAC.git
 
 # With optional dependencies
-pip install "pyscipac[all] @ git+https://github.com/yourusername/pySCIPAC.git"
+pip install "pyscipac[all] @ git+https://github.com/mianaz/pySCIPAC.git"
 ```
 
 ### Method 3: Clone and install locally
 ```bash
-git clone https://github.com/yourusername/pySCIPAC.git
+git clone https://github.com/mianaz/pySCIPAC.git
 cd pySCIPAC
 
 # Standard installation
@@ -54,7 +54,7 @@ pip install -e ".[all]"
 
 ### Method 4: Install with all dependencies for development
 ```bash
-git clone https://github.com/yourusername/pySCIPAC.git
+git clone https://github.com/mianaz/pySCIPAC.git
 cd pySCIPAC
 pip install -r requirements.txt
 pip install -e ".[dev]"

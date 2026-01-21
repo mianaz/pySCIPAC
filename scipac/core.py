@@ -13,6 +13,30 @@ import warnings
 from tqdm import tqdm
 
 
+# --- Utility functions for code simplification ---
+
+def _to_array(y: Union[np.ndarray, pd.DataFrame, pd.Series]) -> np.ndarray:
+    """Convert y to a flat numpy array regardless of input type."""
+    if isinstance(y, pd.DataFrame):
+        return y.values.flatten()
+    elif isinstance(y, pd.Series):
+        return y.values
+    return np.asarray(y).flatten()
+
+
+def _resample_y(y: Union[np.ndarray, pd.DataFrame, pd.Series], idx: np.ndarray) -> np.ndarray:
+    """Resample y values at given indices."""
+    if isinstance(y, (pd.DataFrame, pd.Series)):
+        return y.iloc[idx].values.flatten()
+    return np.asarray(y)[idx]
+
+
+def _stabilize(arr: np.ndarray, clip_val: float = 1e10) -> np.ndarray:
+    """Clip extreme values and replace NaN/Inf for numerical stability."""
+    arr = np.clip(arr, -clip_val, clip_val)
+    return np.nan_to_num(arr, nan=0.0, posinf=clip_val, neginf=-clip_val)
+
+
 def classifier_lambda_core(
     bulk_dat: np.ndarray,
     y: Union[np.ndarray, pd.DataFrame],
@@ -59,11 +83,7 @@ def classifier_lambda_core(
     if use_stratified:
         # Stratified bootstrap: sample within each class to maintain class proportions
         # This matches R's implementation which samples separately per class
-        if isinstance(y, pd.DataFrame):
-            y_values = y.values.flatten()
-        else:
-            y_values = np.asarray(y).flatten()
-
+        y_values = _to_array(y)
         unique_classes = np.unique(y_values)
         resample_idx = []
 
@@ -84,13 +104,7 @@ def classifier_lambda_core(
     new_sample_ave = np.mean(new_sample, axis=0)
 
     if family == 'binomial':
-        # Prepare labels
-        if isinstance(y, pd.DataFrame):
-            y_values = y.values.flatten()
-        else:
-            y_values = y.flatten()
-        
-        new_y = y_values[resample_idx]
+        new_y = _to_array(y)[resample_idx]
         
         # Logistic regression with ElasticNet
         if ela_net_alpha == 0:
@@ -125,14 +139,8 @@ def classifier_lambda_core(
         beta = model.coef_.flatten()
         
     elif family == 'gaussian':
-        # Linear regression
-        if isinstance(y, pd.DataFrame):
-            new_y = y.iloc[resample_idx].values.flatten()
-        elif isinstance(y, pd.Series):
-            new_y = y.iloc[resample_idx].values
-        else:
-            new_y = np.asarray(y)[resample_idx]
-        
+        new_y = _resample_y(y, resample_idx)
+
         # Use ElasticNetCV for linear regression
         model = ElasticNetCV(
             l1_ratio=ela_net_alpha,
@@ -172,12 +180,7 @@ def classifier_lambda_core(
     elif family == 'cumulative':
         # Ordinal regression using mord package (proportional odds model)
         # This is equivalent to R's ordinalNet with family="cumulative"
-        if isinstance(y, pd.DataFrame):
-            new_y = y.iloc[resample_idx].values.flatten()
-        elif isinstance(y, pd.Series):
-            new_y = y.iloc[resample_idx].values
-        else:
-            new_y = np.asarray(y)[resample_idx]
+        new_y = _resample_y(y, resample_idx)
 
         try:
             import mord
@@ -231,26 +234,17 @@ def classifier_lambda_core(
     else:
         raise ValueError(f"Invalid family: {family}. Choose from 'binomial', 'gaussian', 'cox', 'cumulative'")
 
-    # Numerical stability: clip extreme coefficient values to prevent overflow
-    beta = np.clip(beta, -1e10, 1e10)
-    # Replace any NaN or Inf values with 0
-    beta = np.nan_to_num(beta, nan=0.0, posinf=1e10, neginf=-1e10)
+    beta = _stabilize(beta)
 
     # Calculate Lambda values
     lambda_values = np.zeros(k)
     for cluster_idx in range(k):
-        chosen_cen = k_means_cent[:, cluster_idx]
-        x = chosen_cen - new_sample_ave
-        # Clip x values to prevent overflow in dot product
-        x = np.clip(x, -1e10, 1e10)
+        x = _stabilize(k_means_cent[:, cluster_idx] - new_sample_ave)
         lambda_values[cluster_idx] = np.dot(beta, x)
-    
+
     # Assign Lambda to cells based on cluster
     ct_idx = ct_assign['cluster_assignment'].values
-    ct_assign['Lambda'] = lambda_values[ct_idx]
-
-    # Clip Lambda values before standardization to prevent extreme outliers
-    ct_assign['Lambda'] = np.clip(ct_assign['Lambda'], -1e10, 1e10)
+    ct_assign['Lambda'] = _stabilize(lambda_values[ct_idx])
 
     # Standardize Lambda values
     lambda_std = np.std(ct_assign['Lambda'])
@@ -359,14 +353,8 @@ def obtain_ct_lambda(
     ct_assign = k_means_res['ct_assignment'].copy()
 
     # Calculate statistics with numerical stability
-    lambda_est = np.mean(lambda_res, axis=1)
-    lambda_std = np.std(lambda_res, axis=1)
-
-    # Handle NaN/Inf values that may arise from failed bootstrap samples
-    lambda_est = np.nan_to_num(lambda_est, nan=0.0, posinf=1e10, neginf=-1e10)
-    lambda_std = np.nan_to_num(lambda_std, nan=1e-10, posinf=1e10, neginf=0.0)
-    # Ensure std is never zero to avoid division issues
-    lambda_std = np.maximum(lambda_std, 1e-10)
+    lambda_est = _stabilize(np.mean(lambda_res, axis=1))
+    lambda_std = np.maximum(_stabilize(np.std(lambda_res, axis=1)), 1e-10)
 
     # Calculate confidence intervals
     z_score = stats.norm.ppf(1 - ci_alpha/2)

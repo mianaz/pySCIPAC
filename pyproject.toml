@@ -83,9 +83,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/pySCIPAC"
-Repository = "https://github.com/yourusername/pySCIPAC"
-Issues = "https://github.com/yourusername/pySCIPAC/issues"
+Homepage = "https://github.com/mianaz/pySCIPAC"
+Repository = "https://github.com/mianaz/pySCIPAC"
+Documentation = "https://mianaz.github.io/pySCIPAC"
+Issues = "https://github.com/mianaz/pySCIPAC/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

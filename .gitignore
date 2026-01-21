@@ -83,37 +83,33 @@ venv.bak/
 
 # Test data and results
 tests/
-*.csv
 test_data/
 
-# Documentation
+# Documentation build artifacts
 docs/_build/
 docs/_static/
 docs/_templates/
 
-# Tutorial and vignette outputs
+# Tutorial and vignette outputs (knitted locally)
 vignette_results.png
-*.png
-!docs/*.png
+*_output.html
 
-# Large data files
+# Large data files (keep in data/ but don't commit)
 *.h5ad
 *.rds
 *.mtx
 *.h5
 *.hdf5
+*.gz
+*.csv.gz
+
+# Test data folder (large files, knit locally)
+data/
 
 # Temporary analysis files
 *.tmp
 *.bak
 .joblib/
 
-# Real-world data (too large for git)
-data/
-raw_data/
-GSE*/
-TCGA*/
-
-# Local analysis and tutorial files (contain hardcoded paths)
+# Local analysis files
 ANALYSIS_REPORT.md
-tutorial_brca.py
